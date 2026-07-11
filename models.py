@@ -21,6 +21,7 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     collection_entries = db.relationship("CollectionEntry", backref="user", lazy=True)
+    watchlist_entries = db.relationship("WatchlistEntry", backref="watchlist_user", lazy=True)
 
     def to_dict(self):
         return {"id": self.id, "username": self.username, "email": self.email}
@@ -58,6 +59,10 @@ class WatchlistEntry(db.Model):
     film_id = db.Column(db.String(36), db.ForeignKey("film.id"), nullable=False)
     date_added = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     public = db.Column(db.Boolean, default=True)
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "film_id", name="unique_user_film_watchlist"),
+    )
 
     def to_dict(self):
         return {
