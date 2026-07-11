@@ -79,8 +79,10 @@ The watchlist feature allows users to save films they want to watch later. It in
 
 ### Git Log Screenshot
 ```
+58ac7dc docs: add stretch feature documentation to pr-response.md
 7520c70 test: add tests for remove_from_watchlist and public visibility parameter
 4e4ce61 feat: add remove_from_watchlist endpoint and public visibility toggle to add_to_watchlist
+9d87871 docs: update git log hashes in pr-response.md
 8976498 fix: add WatchlistEntry database constraint and User relationship for UUID foreign key integrity
 fc5e9af docs: add pr-response.md with review responses and design decisions
 5f3fd80 fix: sort watchlist by date added instead of title
