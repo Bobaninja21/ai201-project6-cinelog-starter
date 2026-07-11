@@ -37,7 +37,18 @@ I used AI tools (Claude) for codebase orientation — understanding the structur
 
 **How I resolved it:** Accepted main's UUID versions for `Film.id` and `CollectionEntry.film_id`, and updated `WatchlistEntry.film_id` to use `db.String(36)` to match the new UUID pattern. The docstring comment about integer IDs was also removed since UUIDs are now the standard throughout.
 
-**How I verified no conflict remains:** After the rebase, `git log --oneline` shows no merge commits. `pytest tests/ -v` passes with the rebased code. A follow-up `fix:` commit (`5e2baf8`) adds a database-level `UniqueConstraint` on `WatchlistEntry.user_id` and `WatchlistEntry.film_id` to match the `CollectionEntry` pattern, along with a `watchlist_entries` relationship on the `User` model.
+**How I verified no conflict remains:** After the rebase, `git log --oneline` shows no merge commits. `pytest tests/ -v` passes with the rebased code. A follow-up `fix:` commit adds a database-level `UniqueConstraint` on `WatchlistEntry.user_id` and `WatchlistEntry.film_id` to match the `CollectionEntry` pattern, along with a `watchlist_entries` relationship on the `User` model.
+
+## Stretch: remove_from_watchlist()
+**What I did:** Implemented `remove_from_watchlist(user_id, film_id)` in `services/watchlist_service.py` following the exact pattern from `remove_from_collection()` in `collection_service.py`. It queries for an existing entry, raises `NotInWatchlistError` if none is found, otherwise deletes and commits. Added the `DELETE /watchlist/<user_id>/remove` endpoint in `routes/watchlist/watchlist.py` matching the collection route pattern. Wrote `test_remove_from_watchlist_removes_entry` and `test_remove_from_watchlist_nonexistent_raises` to verify both the success and error paths.
+
+**How I verified:** `pytest tests/ -v` passes all 10 tests.
+
+## Stretch: Second test
+**What I did:** Wrote `test_add_to_watchlist_with_public_false` which verifies that passing `public=False` to `add_to_watchlist()` creates an entry with `public=False` rather than the default `True`. I chose this edge case because the visibility toggle is the most consequential feature addition — testing the non-default path ensures the parameter wiring works correctly and the model field accepts the override, not just the default.
+
+## Stretch: Visibility toggle
+**What I did:** Added a `public` parameter to `add_to_watchlist(user_id, film_id, public=True)` in `services/watchlist_service.py`. The route `POST /watchlist/<user_id>/add` now reads the optional `public` field from the request body (`data.get("public", True)`). Callers can set visibility per-entry by including `"public": false` in the JSON body. If omitted, the default `True` is used, matching the `WatchlistEntry.public` model default.
 
 ## PR Description
 <!-- Written at the end — feature overview, design decisions, manual testing steps -->
@@ -45,7 +56,8 @@ I used AI tools (Claude) for codebase orientation — understanding the structur
 ### Feature Overview
 The watchlist feature allows users to save films they want to watch later. It includes:
 - `GET /watchlist/<user_id>` — View a user's watchlist, sorted by date added (newest first)
-- `POST /watchlist/<user_id>/add` — Add a film to the watchlist (body: `{ "film_id": "<uuid>" }`)
+- `POST /watchlist/<user_id>/add` — Add a film to the watchlist (body: `{ "film_id": "<uuid>", "public": true }`)
+- `DELETE /watchlist/<user_id>/remove` — Remove a film from the watchlist (body: `{ "film_id": "<uuid>" }`)
 - Deduplication prevents adding the same film twice
 - Each watchlist entry has a `public` visibility flag (default: `true`)
 
@@ -60,9 +72,15 @@ The watchlist feature allows users to save films they want to watch later. It in
 4. Verify the film appears: `GET /watchlist/<user_id>`
 5. Try adding the same film again — should return a 409 conflict
 6. Try adding a nonexistent film_id — should return a 404
+7. Remove the film: `DELETE /watchlist/<user_id>/remove` with `{ "film_id": "<uuid>" }` — should return 200
+8. Verify the film is gone: `GET /watchlist/<user_id>` — should return an empty list
+9. Try removing again — should return a 404
+10. Add a film with `public: false` — verify the entry's `public` field is `false` in the response
 
 ### Git Log Screenshot
 ```
+7520c70 test: add tests for remove_from_watchlist and public visibility parameter
+4e4ce61 feat: add remove_from_watchlist endpoint and public visibility toggle to add_to_watchlist
 8976498 fix: add WatchlistEntry database constraint and User relationship for UUID foreign key integrity
 fc5e9af docs: add pr-response.md with review responses and design decisions
 5f3fd80 fix: sort watchlist by date added instead of title
